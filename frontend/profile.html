@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profile — TravelPals</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <nav class="navbar">
+    <a class="nav-brand" href="dashboard.html">✈ TravelPals</a>
+    <div class="nav-links">
+      <a href="dashboard.html">Trips</a>
+      <a href="hotels.html">Hotels</a>
+      <a href="#" id="nav-profile">Profile</a>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <main class="container container-narrow">
+    <a href="dashboard.html" class="back-link">← Back to Dashboard</a>
+    <div id="profile-content">
+      <p class="loading">Loading profile...</p>
+    </div>
+  </main>
+
+  <script src="api.js"></script>
+  <script>
+    requireLogin();
+
+    const me = getUser();
+    if (me) document.getElementById('nav-profile').href = `profile.html?id=${me.id}`;
+
+    const userId = new URLSearchParams(window.location.search).get('id') || (me && me.id);
+    if (!userId) window.location.href = 'dashboard.html';
+
+    const isOwnProfile = me && parseInt(userId) === me.id;
+
+    async function loadProfile() {
+      try {
+        const user = await apiFetch(`/api/users/${userId}`);
+        renderProfile(user);
+      } catch (err) {
+        document.getElementById('profile-content').innerHTML = `<p class="error-msg">${err.message}</p>`;
+      }
+    }
+
+    function renderProfile(user) {
+      document.title = `${user.name} — TravelPals`;
+      const hobbies = user.hobbies || [];
+
+      document.getElementById('profile-content').innerHTML = `
+        <div class="profile-card card">
+          <div class="profile-avatar">${user.name[0].toUpperCase()}</div>
+          <h1 class="profile-name">${user.name}</h1>
+          ${user.age || user.gender ? `<p class="profile-meta">${[user.age ? user.age + ' yrs' : '', user.gender].filter(Boolean).join(' · ')}</p>` : ''}
+          ${user.bio ? `<p class="profile-bio">${user.bio}</p>` : ''}
+          ${hobbies.length ? `
+            <div class="profile-hobbies">
+              ${hobbies.map(h => `<span class="tag">${h}</span>`).join('')}
+            </div>` : ''}
+          ${isOwnProfile ? `<button class="btn btn-outline" onclick="showEditForm()" id="edit-btn">Edit Profile</button>` : ''}
+        </div>
+
+        ${isOwnProfile ? `
+        <div class="card form-card" id="edit-form" style="display:none">
+          <h2>Edit Profile</h2>
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="edit-name" value="${escHtml(user.name)}" required />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Age</label>
+              <input type="number" id="edit-age" value="${user.age || ''}" min="16" max="99" placeholder="Age" />
+            </div>
+            <div class="form-group">
+              <label>Gender</label>
+              <select id="edit-gender">
+                <option value="">Prefer not to say</option>
+                <option value="male" ${user.gender === 'male' ? 'selected' : ''}>Male</option>
+                <option value="female" ${user.gender === 'female' ? 'selected' : ''}>Female</option>
+                <option value="non-binary" ${user.gender === 'non-binary' ? 'selected' : ''}>Non-binary</option>
+                <option value="other" ${user.gender === 'other' ? 'selected' : ''}>Other</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Hobbies <span class="hint">(comma-separated)</span></label>
+            <input type="text" id="edit-hobbies" value="${hobbies.join(', ')}" placeholder="hiking, photography, cooking" />
+          </div>
+          <div class="form-group">
+            <label>Bio</label>
+            <textarea id="edit-bio" rows="3" placeholder="Tell other travellers about yourself...">${escHtml(user.bio || '')}</textarea>
+          </div>
+          <p id="edit-error" class="error-msg"></p>
+          <div class="form-actions">
+            <button class="btn btn-outline" onclick="hideEditForm()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveProfile(${user.id})">Save</button>
+          </div>
+        </div>` : ''}`;
+    }
+
+    function showEditForm() {
+      document.getElementById('edit-form').style.display = '';
+      document.getElementById('edit-btn').style.display = 'none';
+    }
+
+    function hideEditForm() {
+      document.getElementById('edit-form').style.display = 'none';
+      document.getElementById('edit-btn').style.display = '';
+    }
+
+    async function saveProfile(id) {
+      document.getElementById('edit-error').textContent = '';
+      const hobbiesRaw = document.getElementById('edit-hobbies').value;
+      const hobbies = hobbiesRaw.split(',').map(h => h.trim()).filter(Boolean);
+
+      const body = {
+        name: document.getElementById('edit-name').value.trim(),
+        age: parseInt(document.getElementById('edit-age').value) || null,
+        gender: document.getElementById('edit-gender').value || null,
+        hobbies,
+        bio: document.getElementById('edit-bio').value.trim()
+      };
+
+      try {
+        const updated = await apiFetch(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+        localStorage.setItem('user', JSON.stringify(updated));
+        renderProfile(updated);
+      } catch (err) {
+        document.getElementById('edit-error').textContent = err.message;
+      }
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    loadProfile();
+  </script>
+</body>
+</html>

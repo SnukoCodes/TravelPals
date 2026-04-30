@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hotels — TravelPals</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <nav class="navbar">
+    <a class="nav-brand" href="dashboard.html">✈ TravelPals</a>
+    <div class="nav-links">
+      <a href="dashboard.html">Trips</a>
+      <a href="hotels.html" class="active">Hotels</a>
+      <a href="#" id="nav-profile">Profile</a>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <div class="page-header">
+      <h2>🏨 Find Hotels</h2>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="destination-input" placeholder="Enter destination (e.g. Paris, Tokyo, Rome)..." />
+      <button class="btn btn-primary" onclick="searchHotels()">Search</button>
+    </div>
+
+    <div id="hotels-results"></div>
+  </main>
+
+  <script src="api.js"></script>
+  <script>
+    requireLogin();
+
+    const me = getUser();
+    if (me) document.getElementById('nav-profile').href = `profile.html?id=${me.id}`;
+
+    // Pre-fill destination if coming from a trip page
+    const preDestination = new URLSearchParams(window.location.search).get('destination');
+    if (preDestination) {
+      document.getElementById('destination-input').value = preDestination;
+      searchHotels();
+    }
+
+    async function searchHotels() {
+      const destination = document.getElementById('destination-input').value.trim();
+      if (!destination) return;
+
+      const resultsEl = document.getElementById('hotels-results');
+      resultsEl.innerHTML = '<p class="loading">Searching hotels...</p>';
+
+      try {
+        const hotels = await apiFetch(`/api/hotels/search?destination=${encodeURIComponent(destination)}`);
+
+        if (!hotels.length) {
+          resultsEl.innerHTML = '<p class="empty-msg">No hotels found for this destination.</p>';
+          return;
+        }
+
+        resultsEl.innerHTML = `
+          <p class="results-count">${hotels.length} hotels found in <strong>${destination}</strong></p>
+          <div class="hotels-grid">
+            ${hotels.map(renderHotelCard).join('')}
+          </div>`;
+      } catch (err) {
+        if (err.message.includes('not configured')) {
+          resultsEl.innerHTML = `
+            <div class="info-box">
+              <h3>Hotel search not configured</h3>
+              <p>Add your <strong>RAPIDAPI_KEY</strong> to <code>backend/.env</code> to enable hotel search.</p>
+              <p>Get a free key at <strong>rapidapi.com</strong> and subscribe to the <strong>Booking.com</strong> API.</p>
+            </div>`;
+        } else {
+          resultsEl.innerHTML = `<p class="error-msg">${err.message}</p>`;
+        }
+      }
+    }
+
+    function renderHotelCard(h) {
+      const stars = h.stars ? '⭐'.repeat(Math.min(Math.round(h.stars), 5)) : '';
+      const score = h.score ? `<span class="hotel-score">${h.score} <small>${h.scoreWord || ''}</small></span>` : '';
+      const price = h.price ? `<span class="hotel-price">From €${Math.round(h.price)}</span>` : '';
+
+      return `
+        <div class="hotel-card">
+          ${h.photo ? `<img class="hotel-photo" src="${h.photo}" alt="${h.name}" loading="lazy" />` : '<div class="hotel-photo-placeholder">🏨</div>'}
+          <div class="hotel-body">
+            <h3 class="hotel-name">${h.name}</h3>
+            <p class="hotel-address">📍 ${h.city || ''}</p>
+            <div class="hotel-footer">
+              <div>${stars} ${score}</div>
+              <div>${price}</div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // Allow pressing Enter to search
+    document.getElementById('destination-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') searchHotels();
+    });
+  </script>
+</body>
+</html>

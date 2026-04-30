@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Trip — TravelPals</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <nav class="navbar">
+    <a class="nav-brand" href="dashboard.html">✈ TravelPals</a>
+    <div class="nav-links">
+      <a href="dashboard.html">Trips</a>
+      <a href="hotels.html">Hotels</a>
+      <a href="#" id="nav-profile">Profile</a>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <main class="container container-narrow">
+    <a href="dashboard.html" class="back-link">← Back to Dashboard</a>
+    <h2 id="page-title">Create a Trip</h2>
+
+    <form class="card form-card" id="trip-form" onsubmit="handleSubmit(event)">
+      <div class="form-group">
+        <label>Trip Title *</label>
+        <input type="text" id="title" required placeholder="e.g. Exploring Tuscany" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Destination *</label>
+          <input type="text" id="destination" required placeholder="e.g. Florence" />
+        </div>
+        <div class="form-group">
+          <label>Country *</label>
+          <input type="text" id="country" required placeholder="e.g. Italy" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Start Date *</label>
+          <input type="date" id="start_date" required />
+        </div>
+        <div class="form-group">
+          <label>End Date *</label>
+          <input type="date" id="end_date" required />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Max Members</label>
+        <input type="number" id="max_members" min="2" max="20" value="5" />
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="description" rows="4" placeholder="Tell people what this trip is about..."></textarea>
+      </div>
+      <p id="form-error" class="error-msg"></p>
+      <div class="form-actions">
+        <a href="dashboard.html" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary" id="submit-btn">Create Trip</button>
+      </div>
+    </form>
+  </main>
+
+  <script src="api.js"></script>
+  <script>
+    requireLogin();
+
+    const me = getUser();
+    if (me) document.getElementById('nav-profile').href = `profile.html?id=${me.id}`;
+
+    const tripId = new URLSearchParams(window.location.search).get('id');
+    const isEdit = !!tripId;
+
+    if (isEdit) {
+      document.getElementById('page-title').textContent = 'Edit Trip';
+      document.getElementById('submit-btn').textContent = 'Save Changes';
+      loadTrip();
+    }
+
+    async function loadTrip() {
+      try {
+        const trip = await apiFetch(`/api/trips/${tripId}`);
+        if (trip.creator_id !== me.id) {
+          window.location.href = `trip.html?id=${tripId}`;
+          return;
+        }
+        document.getElementById('title').value = trip.title;
+        document.getElementById('destination').value = trip.destination;
+        document.getElementById('country').value = trip.country;
+        document.getElementById('start_date').value = trip.start_date;
+        document.getElementById('end_date').value = trip.end_date;
+        document.getElementById('max_members').value = trip.max_members;
+        document.getElementById('description').value = trip.description || '';
+      } catch (err) {
+        document.getElementById('form-error').textContent = err.message;
+      }
+    }
+
+    async function handleSubmit(e) {
+      e.preventDefault();
+      document.getElementById('form-error').textContent = '';
+
+      const body = {
+        title: document.getElementById('title').value.trim(),
+        destination: document.getElementById('destination').value.trim(),
+        country: document.getElementById('country').value.trim(),
+        start_date: document.getElementById('start_date').value,
+        end_date: document.getElementById('end_date').value,
+        max_members: parseInt(document.getElementById('max_members').value),
+        description: document.getElementById('description').value.trim()
+      };
+
+      if (body.end_date < body.start_date) {
+        const fmt = d => new Date(d).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        document.getElementById('form-error').textContent =
+          `End date (${fmt(body.end_date)}) must be after start date (${fmt(body.start_date)}).`;
+        return;
+      }
+
+      try {
+        let trip;
+        if (isEdit) {
+          trip = await apiFetch(`/api/trips/${tripId}`, { method: 'PUT', body: JSON.stringify(body) });
+        } else {
+          trip = await apiFetch('/api/trips', { method: 'POST', body: JSON.stringify(body) });
+        }
+        window.location.href = `trip.html?id=${trip.id}`;
+      } catch (err) {
+        document.getElementById('form-error').textContent = err.message;
+      }
+    }
+  </script>
+</body>
+</html>

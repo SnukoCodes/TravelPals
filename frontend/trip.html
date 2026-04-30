@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trip — TravelPals</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <nav class="navbar">
+    <a class="nav-brand" href="dashboard.html">✈ TravelPals</a>
+    <div class="nav-links">
+      <a href="dashboard.html">Trips</a>
+      <a href="hotels.html">Hotels</a>
+      <a href="#" id="nav-profile">Profile</a>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <a href="dashboard.html" class="back-link">← Back to Dashboard</a>
+    <div id="trip-content">
+      <p class="loading">Loading trip...</p>
+    </div>
+  </main>
+
+  <script src="api.js"></script>
+  <script>
+    requireLogin();
+
+    const me = getUser();
+    if (me) document.getElementById('nav-profile').href = `profile.html?id=${me.id}`;
+
+    const tripId = new URLSearchParams(window.location.search).get('id');
+    if (!tripId) window.location.href = 'dashboard.html';
+
+    let currentTrip = null;
+
+    async function loadTrip() {
+      try {
+        const trip = await apiFetch(`/api/trips/${tripId}`);
+        currentTrip = trip;
+        render(trip);
+      } catch (err) {
+        document.getElementById('trip-content').innerHTML = `<p class="error-msg">${err.message}</p>`;
+      }
+    }
+
+    function render(trip) {
+      const isOwner = me && trip.creator_id === me.id;
+      const isMember = me && trip.members.some(m => m.id === me.id);
+      const isFull = trip.members.length >= trip.max_members;
+
+      const startDate = new Date(trip.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      const endDate = new Date(trip.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+      document.getElementById('trip-content').innerHTML = `
+        <div class="trip-detail">
+          <div class="trip-detail-header">
+            <div>
+              <h1>${trip.title}</h1>
+              <p class="trip-location">📍 ${trip.destination}, ${trip.country}</p>
+            </div>
+            ${isOwner ? `
+              <div class="owner-actions">
+                <a href="create-trip.html?id=${trip.id}" class="btn btn-outline btn-sm">Edit</a>
+                <button class="btn btn-danger btn-sm" onclick="deleteTrip()">Delete</button>
+              </div>` : ''}
+          </div>
+
+          <div class="trip-detail-meta">
+            <div class="meta-item"><span class="meta-label">Dates</span><span>🗓 ${startDate} – ${endDate}</span></div>
+            <div class="meta-item"><span class="meta-label">Members</span><span>👥 ${trip.members.length}/${trip.max_members}</span></div>
+            <div class="meta-item"><span class="meta-label">Organiser</span><span>${trip.creator_name}</span></div>
+          </div>
+
+          ${trip.description ? `<p class="trip-detail-desc">${trip.description}</p>` : ''}
+
+          ${!isOwner ? `
+            <div class="join-section">
+              ${isMember
+                ? `<button class="btn btn-danger" onclick="leaveTrip()">Leave Trip</button>`
+                : isFull
+                  ? `<button class="btn btn-primary" disabled>Trip is Full</button>`
+                  : `<button class="btn btn-primary" onclick="joinTrip()">Join Trip</button>`
+              }
+            </div>` : ''}
+
+          <h2 class="section-title">Members (${trip.members.length})</h2>
+          <div class="members-grid">
+            ${trip.members.map(m => `
+              <a href="profile.html?id=${m.id}" class="member-card">
+                <div class="member-avatar">${m.name[0].toUpperCase()}</div>
+                <div class="member-info">
+                  <strong>${m.name}</strong>
+                  ${m.age ? `<span>${m.age} yrs</span>` : ''}
+                  ${m.hobbies && m.hobbies.length ? `<span class="hobby-tags">${m.hobbies.slice(0,3).map(h => `<span class="tag">${h}</span>`).join('')}</span>` : ''}
+                </div>
+              </a>`).join('')}
+          </div>
+
+          <div class="hotel-link-section">
+            <p>Looking for accommodation in ${trip.destination}?</p>
+            <a href="hotels.html?destination=${encodeURIComponent(trip.destination)}" class="btn btn-outline">🏨 Search Hotels</a>
+          </div>
+        </div>`;
+
+      document.title = `${trip.title} — TravelPals`;
+    }
+
+    async function joinTrip() {
+      try {
+        await apiFetch(`/api/trips/${tripId}/join`, { method: 'POST' });
+        loadTrip();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function leaveTrip() {
+      if (!confirm('Leave this trip?')) return;
+      try {
+        await apiFetch(`/api/trips/${tripId}/leave`, { method: 'DELETE' });
+        loadTrip();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function deleteTrip() {
+      if (!confirm('Delete this trip? This cannot be undone.')) return;
+      try {
+        await apiFetch(`/api/trips/${tripId}`, { method: 'DELETE' });
+        window.location.href = 'dashboard.html';
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    loadTrip();
+  </script>
+</body>
+</html>
