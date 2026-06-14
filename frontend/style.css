@@ -60,6 +60,17 @@ a { color: inherit; text-decoration: none; }
 }
 .nav-links a:hover, .nav-links a.active { color: #fff; }
 
+/* Logout button sits on the dark green navbar — needs white styling */
+.navbar .btn-outline {
+  color: #fff;
+  border-color: rgba(255,255,255,.6);
+}
+.navbar .btn-outline:hover {
+  background: rgba(255,255,255,.15);
+  border-color: #fff;
+  color: #fff;
+}
+
 /* ── Buttons ───────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;
@@ -123,24 +134,56 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #1a6b5a 0%, #0f4037 100%);
+  background-image:
+    linear-gradient(135deg, rgba(15,64,55,.55), rgba(0,0,0,.45)),
+    url('img/beach-hero.jpeg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  position: relative;
 }
 
-.auth-container { width: 100%; max-width: 420px; padding: 1rem; }
+.auth-container {
+  width: 100%;
+  max-width: 440px;
+  padding: 1rem;
+  position: relative;
+  z-index: 1;
+  animation: fadeUp .6s ease-out;
+}
 
 .auth-brand {
   text-align: center;
   color: #fff;
   margin-bottom: 2rem;
+  text-shadow: 0 2px 12px rgba(0,0,0,.4);
 }
-.auth-brand h1 { font-size: 2rem; margin-bottom: .4rem; }
-.auth-brand p  { opacity: .8; font-size: .95rem; }
+.auth-brand h1 {
+  font-size: 2.4rem;
+  margin-bottom: .4rem;
+  font-weight: 800;
+  letter-spacing: -.5px;
+}
+.auth-brand p {
+  opacity: .95;
+  font-size: 1rem;
+  font-weight: 400;
+}
 
 .auth-card {
-  background: var(--surface);
-  border-radius: var(--radius);
-  box-shadow: 0 8px 32px rgba(0,0,0,.2);
+  background: rgba(255, 255, 255, .96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.4);
   overflow: hidden;
+  border: 1px solid rgba(255,255,255,.6);
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .tab-bar {
